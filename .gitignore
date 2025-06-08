@@ -1,3 +1,19 @@
+# Build directories
+/out/
+bin/
+build/
+
+# IDE files
+/.vs/
+/.idea/
+CMakeSettings.json
+
+# CMake-generated files(if ever generated inside src)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
 # Prerequisites
 *.d
 
