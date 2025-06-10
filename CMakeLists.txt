@@ -15,7 +15,8 @@ add_subdirectory(libs/glfw)
 find_package(OpenGL REQUIRED)
 
 # Exec
-add_executable(Something3D src/Game.cpp)
+file(GLOB SOURCES "src/*.cpp")
+add_executable(Something3D ${SOURCES})
 
 target_link_libraries(Something3D PRIVATE glad glfw ${OPENGL_LIBRARIES})
 
