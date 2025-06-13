@@ -121,14 +121,12 @@ int main()
 	float vertices[] = {
 		0.75f, 0.75f, 0.f,
 		0.75f, 0.5f, 0.f,
-		0.5f, 0.5f, 0.f,
 		0.5f, 0.5f, 0.f
 	};
 
 	float vertices2[] = {
 		-0.5f, -0.5f, 0.f,
 		-0.5, -0.75f, 0.f,
-		-0.75f, -0.25f, 0.f,
 		-0.75f, -0.25f, 0.f
 	};
 
@@ -139,11 +137,10 @@ int main()
 
 	// Vertex buffer obj and vertex array obj and element buffer obj
 	// Store vertex data in memory on GPU
-	unsigned int VBOs[2], VAOs[2], EBO;
+	unsigned int VBOs[2], VAOs[2];
 
 	glGenVertexArrays(2, VAOs);
 	glGenBuffers(2, VBOs);
-	glGenBuffers(1, &EBO);
 	GL_CHECK_ERROR();
 	
 	// First triangle
@@ -166,10 +163,6 @@ int main()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	GL_CHECK_ERROR();
 
-	/*glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	GL_CHECK_ERROR();*/
-
 	// View via wireframe mode
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -190,7 +183,6 @@ int main()
 		glUseProgram(shaderProgram[1]);
 		glBindVertexArray(VAOs[1]);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		// Check events and swap buffers
 		glfwSwapBuffers(window);
@@ -200,7 +192,6 @@ int main()
 	// De-allocate all resources once its over
 	glDeleteBuffers(2, VBOs);
 	glDeleteVertexArrays(2, VAOs);
-	glDeleteBuffers(1, &EBO);
 	glDeleteProgram(shaderProgram[0]);
 	glDeleteProgram(shaderProgram[1]);
 
