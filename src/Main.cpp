@@ -49,7 +49,7 @@ int main()
 		// position		   color
 		0.75f, 0.75f, 0.f, 1.f, 0.f, 0.f,
 		0.75f, 0.25f, 0.f, 0.f, 0.f, 0.f,
-		0.25f, 0.25f, 0.f, 0.f, 0.f, 1.f
+		-0.25f, -0.25f, 0.f, 0.f, 0.f, 1.f
 	};
 
 	float vertices2[] = {
@@ -103,6 +103,7 @@ int main()
 
 		// Draw
 		shader.Use();
+		shader.SetFloat("offset", 0.2f);
 		glBindVertexArray(VAOs[0]);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
