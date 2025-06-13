@@ -18,6 +18,9 @@ find_package(OpenGL REQUIRED)
 file(GLOB SOURCES "src/*.cpp")
 add_executable(Something3D ${SOURCES})
 
+# Copy shaders to build directory
+file(COPY shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 target_link_libraries(Something3D PRIVATE glad glfw ${OPENGL_LIBRARIES})
 
 # On linux
