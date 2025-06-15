@@ -11,6 +11,10 @@ target_include_directories(glad PUBLIC libs/glad/include)
 # GLFW
 add_subdirectory(libs/glfw)
 
+# Third party headers
+add_library(third_party_headers INTERFACE)
+target_include_directories(third_party_headers INTERFACE libs/third_party)
+
 # Req
 find_package(OpenGL REQUIRED)
 
@@ -20,8 +24,14 @@ add_executable(Something3D ${SOURCES})
 
 # Copy shaders to build directory
 file(COPY shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY resources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(Something3D PRIVATE glad glfw ${OPENGL_LIBRARIES})
+target_link_libraries(Something3D PRIVATE 
+	glad 
+	glfw 
+	third_party_headers
+	${OPENGL_LIBRARIES}
+)
 
 # On linux
 if (UNIX)

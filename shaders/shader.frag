@@ -1,8 +1,7 @@
 #version 330 core
+out vec4 FragColor;
 
 in vec3 vPosOut;
-in vec3 vertexColor;
-out vec4 FragColor;
 
 void main()
 {
