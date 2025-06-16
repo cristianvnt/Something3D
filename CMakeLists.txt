@@ -4,36 +4,43 @@ project(Something3D LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# GLFW
+add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glfw)
+
 # GLAD 
 add_library(glad STATIC libs/glad/src/glad.c)
-target_include_directories(glad PUBLIC libs/glad/include)
+target_include_directories(glad PUBLIC ${CMAKE_SOURCE_DIR}/libs/glad/include)
 
-# GLFW
-add_subdirectory(libs/glfw)
+# GLM
+add_library(glm INTERFACE)
+target_include_directories(glm INTERFACE ${CMAKE_SOURCE_DIR}/libs/glm)
 
-# Third party headers
-add_library(third_party_headers INTERFACE)
-target_include_directories(third_party_headers INTERFACE libs/third_party)
+# Third party
+add_library(third_party_h INTERFACE)
+target_include_directories(third_party_h INTERFACE ${CMAKE_SOURCE_DIR}/libs/third_party)
 
-# Req
 find_package(OpenGL REQUIRED)
 
-# Exec
-file(GLOB SOURCES "src/*.cpp")
-add_executable(Something3D ${SOURCES})
+# Get sources and create executable
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
-# Copy shaders to build directory
-file(COPY shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY resources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+add_executable(${PROJECT_NAME} ${SOURCES})
 
-target_link_libraries(Something3D PRIVATE 
-	glad 
+target_link_libraries(${PROJECT_NAME} PRIVATE 
 	glfw 
-	third_party_headers
-	${OPENGL_LIBRARIES}
+	glad 
+	glm 
+	third_party_h
+	OpenGL::GL
 )
 
 # On linux
 if (UNIX)
-	target_link_libraries(Something3D PRIVATE dl pthread)
+	target_link_libraries(${PROJECT_NAME} PRIVATE dl pthread)
 endif()
+
+# Copy resources
+file(COPY
+	${CMAKE_SOURCE_DIR}/resources
+	DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+)

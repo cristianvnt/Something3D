@@ -47,9 +47,9 @@ int main()
 		return -1;
 	}
 
-	Shader shader("shaders/shader.vert", "shaders/shader.frag");
-	Shader shaderTwo("shaders/shader.vert", "shaders/shaderTwo.frag");
-	Shader shaderRect("shaders/shader.vert", "shaders/shaderRect.frag");
+	Shader shader("resources/shaders/shader.vert", "resources/shaders/shader.frag");
+	Shader shaderTwo("resources/shaders/shader.vert", "resources/shaders/shaderTwo.frag");
+	Shader shaderRect("resources/shaders/shader.vert", "resources/shaders/shaderRect.frag");
 
 	float vertices[] = 
 	{
