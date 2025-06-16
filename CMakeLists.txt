@@ -39,7 +39,7 @@ if (UNIX)
 	target_link_libraries(${PROJECT_NAME} PRIVATE dl pthread)
 endif()
 
-# Copy resources
+# Runtime resources
 file(COPY
 	${CMAKE_SOURCE_DIR}/resources
 	DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
