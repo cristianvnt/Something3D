@@ -4,6 +4,16 @@ project(Something3D LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Automate submodules git init
+execute_process(
+	COMMAND git submodule update --init --recursive
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	RESULT_VARIABLE GIT_SUBMOD_RESULT
+)
+if(NOT GIT_SUBMOD_RESULT EQUAL 0)
+  message(FATAL_ERROR "Failed to init git submodules. Try running manually: git submodule update --init --recursive")
+endif()
+
 # GLFW
 add_subdirectory(${CMAKE_SOURCE_DIR}/libs/glfw)
 
