@@ -8,7 +8,7 @@ void GL::LOG::LogShaderCompilation(unsigned int shader, ShaderType type)
 		return;
 
 	char infoLog[512];
-	glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog);
+	GL_CHECK(glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog));
 
 	const char* typeStr = [&]() 
 		{
@@ -25,7 +25,7 @@ void GL::LOG::LogShaderCompilation(unsigned int shader, ShaderType type)
 			}
 		}();
 
-	std::cerr << "ERROR::SHADER::" << typeStr << "::COMPILATION_FAILED\n" << infoLog << "\n";
+	std::cout << "ERROR::SHADER::" << typeStr << "::COMPILATION_FAILED\n" << infoLog << "\n";
 }
 
 void GL::LOG::LogShaderProgramLinking(unsigned int shaderProgram)
@@ -36,9 +36,9 @@ void GL::LOG::LogShaderProgramLinking(unsigned int shaderProgram)
 		return;
 
 	char infoLog[512];
-	glGetProgramInfoLog(shaderProgram, sizeof(infoLog), nullptr, infoLog); 
+	GL_CHECK(glGetProgramInfoLog(shaderProgram, sizeof(infoLog), nullptr, infoLog));
 
-	std::cerr << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << "\n";
+	std::cout << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << "\n";
 }
 
 void GL::LOG::LogShader(unsigned int shader, ShaderType type)
@@ -49,12 +49,19 @@ void GL::LOG::LogShader(unsigned int shader, ShaderType type)
 		LogShaderCompilation(shader, type);
 }
 
-GLenum GL::ERR::glCheckError_(const char* file, int line)
+void GL::ERR::glClearError()
 {
-	GLenum err;
-	while ((err = glGetError()) != GL_NO_ERROR)
-		std::cerr << "[GL] " << GetGLErrorString(err) << "\n | " << file << " (" << line << ")\n";
-	return err;
+	while (glGetError() != GL_NO_ERROR);
+}
+
+bool GL::ERR::glCheckError_(const char* func, const char* file, int line)
+{
+	while (GLenum err = glGetError())
+	{
+		std::cout << "[OpenGL ] " << GetGLErrorString(err) << " | " << func << "\n | " << file << " (" << line << ")\n";
+		return false;
+	}
+	return true;
 }
 
 constexpr const char* GL::ERR::GetGLErrorString(GLenum err)
@@ -62,20 +69,20 @@ constexpr const char* GL::ERR::GetGLErrorString(GLenum err)
 	switch (err)
 	{
 	case GL_INVALID_ENUM:
-		return "INVALID_ENUM >> Enum parameter is not legal.";
+		return "INVALID_ENUM";
 	case GL_INVALID_VALUE:
-		return "INVALID_VALUE >> Value is out of range.";
+		return "INVALID_VALUE";
 	case GL_INVALID_OPERATION:
-		return "INVALID_OPERATION >> Operation is not allowed in this state.";
+		return "INVALID_OPERATION";
 	case GL_STACK_UNDERFLOW:
-		return "STACK_UNDERFLOW >> Attempt to pop from an empty stack.";
+		return "STACK_UNDERFLOW";
 	case GL_STACK_OVERFLOW:
-		return "STACK_OVERFLOW >> Attempt to push onto a full stack.";
+		return "STACK_OVERFLOW";
 	case GL_OUT_OF_MEMORY:
-		return "OUT_OF_MEMORY >> Not enough memory to complete the operation.";
+		return "OUT_OF_MEMORY";
 	case GL_INVALID_FRAMEBUFFER_OPERATION:
-		return "INVALID_FRAMEBUFFER_OPERATION >> Incomplete framebuffer.";
+		return "INVALID_FRAMEBUFFER_OPERATION";
 	default:
-		return "UNKNOWN_GL_ERROR >> Unrecognized OpenGL error.";
+		return "UNKNOWN_GL_ERROR";
 	}
 }
