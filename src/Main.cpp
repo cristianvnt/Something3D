@@ -11,17 +11,36 @@
 
 using namespace GL::ERR;
 
-constexpr int SCREEN_WIDTH = 1000;
-constexpr int SCREEN_HEIGHT = 800;
-
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
+void MouseCallback(GLFWwindow* window, double xPos, double yPos);
+void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 void ProcessInput(GLFWwindow* window);
 void ChangeColor(Shader& shader);
 void LoadTextureJPG(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void LoadTexturePng(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void FPS(GLFWwindow* window);
 
-float maxVis = 0.1f;
+constexpr int SCREEN_WIDTH = 1000;
+constexpr int SCREEN_HEIGHT = 800;
+
+float DeltaTime = 0.f;
+float LastFrame = 0.f;
+
+constexpr float MAX_VIEW_DIST = 200.f;
+constexpr float FAR_PLANE = -20.f;
+
+constexpr glm::vec3 Origin = glm::vec3(0.f, 0.f, 0.f);
+glm::vec3 CameraPos = glm::vec3(0.f, 0.f, 3.f);
+glm::vec3 CameraFront = glm::vec3(0.f, 0.f, -1.f);
+glm::vec3 CameraUp = glm::vec3(0.f, 1.f, 0.f);
+
+float Fov = 60.f;
+float MaxVis = 0.1f;
+float LastX = SCREEN_HEIGHT / 2.f;
+float LastY = SCREEN_WIDTH / 2.f;
+bool FirstMouse = true;
+float Yaw = -90.f;
+float Pitch = 0.f;
 
 int main()
 {
@@ -46,6 +65,11 @@ int main()
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
 
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetCursorPosCallback(window, MouseCallback);
+
+	glfwSetScrollCallback(window, ScrollCallback);
+
 	// VSync disabled
 	glfwSwapInterval(0);
 
@@ -56,81 +80,85 @@ int main()
 		return -1;
 	}
 
-	Shader shader("resources/shaders/shader.vert", "resources/shaders/shader.frag");
-	Shader shaderTwo("resources/shaders/shader.vert", "resources/shaders/shaderTwo.frag");
+	GL_CHECK(glEnable(GL_DEPTH_TEST));
+
 	Shader shaderRect("resources/shaders/transform.vert", "resources/shaders/shaderRect.frag");
 
-	float vertices[] = 
-	{
-		// position		   color
-		0.75f, 0.75f, 0.f, 1.f, 0.f, 0.f,
-		0.75f, 0.25f, 0.f, 0.f, 1.f, 0.f,
-		0.25f, 0.25f, 0.f, 0.f, 0.f, 1.f
+	float verticesCube[] = {
+		// position			 // texture
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 	};
 
-	float vertices2[] =
-	{
-		-0.25f, -0.25f, 0.f,
-		-0.5, -0.75f, 0.f,
-		-0.75f, -0.15f, 0.f
-	};
-
-	float verticesRect[] =
-	{
-		// position		   color		  texure
-		0.75f, -0.25f, 0.f, 1.f, 0.f, 0.f, 1.f, 1.f,
-		0.75f, -0.65f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f,
-		0.25f, -0.65f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f,
-		0.25f, -0.25f, 0.f, 0.f, 1.f, 0.f, 0.f, 1.f
-	};
-
-	unsigned int indices[] =
-	{
-		0, 1, 3,
-		1, 2, 3
+	glm::vec3 cubePositions[] = {
+		glm::vec3(0.f, 0.f, 0.f),
+		glm::vec3(2.0f, 5.0f, -10.0f),
+		glm::vec3(-1.5f, -2.2f, -2.5f),
+		glm::vec3(-3.8f, -2.0f, -12.3f),
+		glm::vec3(2.4f, -0.4f, -3.5f),
+		glm::vec3(-1.7f, 3.0f, -7.5f),
+		glm::vec3(1.3f, -2.0f, -9.5f),
+		glm::vec3(3.5f, 4.0f, -2.5f),
+		glm::vec3(1.5f, 2.2f, -1.5f),
+		glm::vec3(-1.3f, 1.0f, -1.5f)
 	};
 
 	// Vertex buffer obj and vertex array obj
 	// Store vertex data in memory on GPU
-	unsigned int VBOs[3], VAOs[3], EBO;
+	unsigned int VBO, VAO;
 
-	GL_CHECK(glGenVertexArrays(3, VAOs));
-	GL_CHECK(glGenBuffers(3, VBOs));
-	GL_CHECK(glGenBuffers(1, &EBO));
-	
-	// First triangle
-	GL_CHECK(glBindVertexArray(VAOs[0]));
-	GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]));
-	GL_CHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW));
-	GL_CHECK(glEnableVertexAttribArray(0));
-	GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0));
-	GL_CHECK(glEnableVertexAttribArray(1));
-	GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float))));
-
-	// Second triangle
-	GL_CHECK(glBindVertexArray(VAOs[1]));
-	GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]));
-	GL_CHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW));
-
-	// Interpret vertex data (per attribute)
-	GL_CHECK(glEnableVertexAttribArray(0));
-	GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0));
+	GL_CHECK(glGenVertexArrays(1, &VAO));
+	GL_CHECK(glGenBuffers(1, &VBO));
 
 	unsigned int texture1, texture2;
 	// Rectangle
-	GL_CHECK(glBindVertexArray(VAOs[2]));
-	GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, VBOs[2]));
-	GL_CHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(verticesRect), verticesRect, GL_STATIC_DRAW));
-
-	GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO));
-	GL_CHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW));
+	GL_CHECK(glBindVertexArray(VAO));
+	GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, VBO));
+	GL_CHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(verticesCube), verticesCube, GL_STATIC_DRAW));
 
 	GL_CHECK(glEnableVertexAttribArray(0));
-	GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0));
+	GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0));
 	GL_CHECK(glEnableVertexAttribArray(1));
-	GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float))));
-	GL_CHECK(glEnableVertexAttribArray(2));
-	GL_CHECK(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float))));
+	GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float))));
 
 	LoadTextureJPG(shaderRect, "resources/textures/container.jpg", texture1, "texture1");
 	LoadTexturePng(shaderRect, "resources/textures/awesomeface.png", texture2, "texture2");
@@ -141,6 +169,10 @@ int main()
 	// Render loop
 	while (!glfwWindowShouldClose(window))
 	{
+		float currentFrame = glfwGetTime();
+		DeltaTime = currentFrame - LastFrame;
+		LastFrame = currentFrame;
+
 		// FPS
 		FPS(window);
 
@@ -149,56 +181,39 @@ int main()
 
 		// Rendering
 		glClearColor(0.2f, 0.1f, 0.5f, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Draw
-		// Triangle 1
-		shader.Use();
-		float someTime = glfwGetTime();
-		float posChange = (sin(someTime) / 2.f) - 0.4;
-		shader.SetUniformF("offset", posChange);
-		GL_CHECK(glBindVertexArray(VAOs[0]));
-		GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
-
-		// Triangle 2
-		ChangeColor(shaderTwo);
-		GL_CHECK(glBindVertexArray(VAOs[1]));
-		GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
-
-		// Rectangle
 		// bind textures on corresponding texture units
 		GL_CHECK(glActiveTexture(GL_TEXTURE0));
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, texture1));
 		GL_CHECK(glActiveTexture(GL_TEXTURE1));
 		GL_CHECK(glBindTexture(GL_TEXTURE_2D, texture2));
 
-		// Render container
-		// Identity matrix
-		glm::mat4 transform = glm::mat4(1.f);
-		// Step3: move center back in the middle of the object
-		transform = glm::translate(transform, glm::vec3(0.5f, -0.45f, 0.f));
-		// Step2: rotate around origin
-		transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.f, 0.f, 1.f));
-		// Step1: move center to origin (values opposite of center pos)
-		transform = glm::translate(transform, glm::vec3(-0.5f, 0.45f, 0.f));
-
+		// Render cubes
 		shaderRect.Use();
-		shaderRect.SetUniformMat4("transform", transform);
+		shaderRect.SetUniformF("visible", MaxVis);
 
-		shaderRect.SetUniformF("visible", maxVis);
+		// Camera
+		// Projection matrix
+		glm::mat4 projection = glm::mat4(1.f); // this hardly ever changes so we can init before loop
+		projection = glm::perspective(glm::radians(Fov), static_cast<float>(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, MAX_VIEW_DIST);
+		shaderRect.SetUniformMat4fv("projection", projection);
 
-		GL_CHECK(glBindVertexArray(VAOs[2]));
-		GL_CHECK(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
+		glm::mat4 view = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
+		shaderRect.SetUniformMat4fv("view", view);
 
-		float scaling = (float)abs(glm::sin(glfwGetTime())) + 0.9;
-		transform = glm::mat4(1.f);
-		transform = glm::translate(transform, glm::vec3(0.5f, -0.45, 0.f));
-		transform = glm::scale(transform, glm::vec3(0.7f * scaling, 0.7f * scaling, 1.f));
-		transform = glm::translate(transform, glm::vec3(-1.2f, 1.25f, 0.f));
+		GL_CHECK(glBindVertexArray(VAO));
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			glm::mat4 model = glm::mat4(1.f);
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 25.f * i;
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.f, 1.f, 0.5f));
+			shaderRect.SetUniformMat4fv("model", model);
 
-		shaderRect.SetUniformMat4("transform", transform);
-
-		GL_CHECK(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0));
+			GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 36));
+		}
 
 		// Check events and swap buffers
 		glfwSwapBuffers(window);
@@ -206,9 +221,8 @@ int main()
 	}
 
 	// De-allocate all resources once its over
-	GL_CHECK(glDeleteVertexArrays(3, VAOs));
-	GL_CHECK(glDeleteBuffers(3, VBOs));
-	GL_CHECK(glDeleteBuffers(1, &EBO));
+	GL_CHECK(glDeleteVertexArrays(1, &VAO));
+	GL_CHECK(glDeleteBuffers(1, &VBO));
 
 	glfwTerminate();
 	return 0;
@@ -223,18 +237,72 @@ void ProcessInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+
 	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
 	{
-		maxVis += 0.0001f;
-		if (maxVis >= 1.f)
-			maxVis = 1.f;
+		MaxVis += 0.0005f;
+		if (MaxVis >= 1.f)
+			MaxVis = 1.f;
 	}
 	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
 	{
-		maxVis -= 0.0001f;
-		if (maxVis <= 0.f)
-			maxVis = 0.f;
+		MaxVis -= 0.0005f;
+		if (MaxVis <= 0.f)
+			MaxVis = 0.f;
 	}
+
+	const float cameraSpeed = 2.5f * DeltaTime;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		CameraPos += CameraFront * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		CameraPos -= CameraFront * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * cameraSpeed;
+}
+
+void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
+{
+	Fov -= (float)yOffset;
+	if (Fov < 1.f)
+		Fov = 1.f;
+	if (Fov > 60.f)
+		Fov = 60.f;
+}
+
+void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+{
+	if (FirstMouse)
+	{
+		LastX = xPos;
+		LastY = yPos;
+		FirstMouse = false;
+		return;
+	}
+
+	float xOffset = xPos - LastX;
+	float yOffset = LastY - yPos; // reversed since y-coords range from bottom to top
+	LastX = xPos;
+	LastY = yPos;
+
+	float sensitivity = 0.01f;
+	xOffset *= sensitivity;
+	yOffset *= sensitivity;
+
+	Yaw += xOffset;
+	Pitch += yOffset;
+
+	if (Pitch > 89.f)
+		Pitch = 89.f;
+	if (Pitch < -89.f)
+		Pitch = -89.f;
+
+	glm::vec3 direction;
+	direction.x = glm::cos(glm::radians(Yaw)) * glm::cos(glm::radians(Pitch));
+	direction.y = glm::sin(glm::radians(Pitch));
+	direction.z = glm::sin(glm::radians(Yaw)) * glm::cos(glm::radians(Pitch));
+	CameraFront = glm::normalize(direction);
 }
 
 void ChangeColor(Shader& shader)
@@ -252,8 +320,8 @@ void LoadTextureJPG(Shader& shader, const char* fName, unsigned int& texture, co
 
 	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
 	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST));
-	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
 	int width, height, noChannels;
 	unsigned char* data = stbi_load(fName, &width, &height, &noChannels, 0);
@@ -279,8 +347,8 @@ void LoadTexturePng(Shader& shader, const char* fName, unsigned int& texture, co
 
 	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
 	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
-	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST));
-	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+	GL_CHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
 	int width, height, noChannels;
 	stbi_set_flip_vertically_on_load(true);
@@ -302,15 +370,10 @@ void LoadTexturePng(Shader& shader, const char* fName, unsigned int& texture, co
 
 void FPS(GLFWwindow* window)
 {
-	static float lastTime = 0.f;
 	static float timerSec = 0.f;
 	static int fpsCount = 0;
 
-	float currTime = (float)glfwGetTime();
-	float dt = currTime - lastTime;
-	lastTime = currTime;
-
-	timerSec += dt;
+	timerSec += DeltaTime;
 	fpsCount++;
 
 	if (timerSec >= 0.1f)

@@ -36,9 +36,9 @@ public:
 	void SetUniformVec3(const std::string& name, const glm::vec3& value) const;
 	void SetUniformVec4(const std::string& name, float x, float y, float z, float w) const;
 	void SetUniformVec4(const std::string& name, const glm::vec4& value) const;
-	void SetUniformMat2(const std::string& name, const glm::mat2& mat) const;
-	void SetUniformMat3(const std::string& name, const glm::mat3& mat) const;
-	void SetUniformMat4(const std::string& name, const glm::mat4& mat) const;
+	void SetUniformMat2fv(const std::string& name, const glm::mat2& mat) const;
+	void SetUniformMat3fv(const std::string& name, const glm::mat3& mat) const;
+	void SetUniformMat4fv(const std::string& name, const glm::mat4& mat) const;
 };
 
 #endif // SHADER_H
