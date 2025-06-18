@@ -8,6 +8,7 @@
 #include <iostream>
 #include "Logger.h"
 #include "Shader.h"
+#include "Camera.h"
 
 using namespace GL::ERR;
 
@@ -15,33 +16,28 @@ void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void MouseCallback(GLFWwindow* window, double xPos, double yPos);
 void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset);
 void ProcessInput(GLFWwindow* window);
-void ChangeColor(Shader& shader);
 void LoadTextureJPG(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void LoadTexturePng(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void FPS(GLFWwindow* window);
-glm::mat4 LookAt(glm::vec3 pos, glm::vec3 target, glm::vec3 up);
 
+// Settings
 constexpr int SCREEN_WIDTH = 1000;
 constexpr int SCREEN_HEIGHT = 800;
 
+// Timing
 float DeltaTime = 0.f;
 float LastFrame = 0.f;
 
+// Camera
+Camera camera(glm::vec3(0.f, 0.f, 3.f));
 constexpr float MAX_VIEW_DIST = 200.f;
 constexpr float FAR_PLANE = -20.f;
 
-constexpr glm::vec3 Origin = glm::vec3(0.f, 0.f, 0.f);
-glm::vec3 CameraPos = glm::vec3(0.f, 0.f, 3.f);
-glm::vec3 CameraFront = glm::vec3(0.f, 0.f, -1.f);
-glm::vec3 CameraUp = glm::vec3(0.f, 1.f, 0.f);
-
-float Fov = 60.f;
 float MaxVis = 0.1f;
 float LastX = SCREEN_HEIGHT / 2.f;
 float LastY = SCREEN_WIDTH / 2.f;
 bool FirstMouse = true;
-float Yaw = -90.f;
-float Pitch = 0.f;
+
 
 int main()
 {
@@ -197,11 +193,11 @@ int main()
 
 		// Camera
 		// Projection matrix
-		glm::mat4 projection = glm::mat4(1.f); // this hardly ever changes so we can init before loop
-		projection = glm::perspective(glm::radians(Fov), static_cast<float>(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, MAX_VIEW_DIST);
+		glm::mat4 projection = glm::mat4(1.f);
+		projection = glm::perspective(glm::radians(CameraDefaults::FOV), static_cast<float>(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, MAX_VIEW_DIST);
 		shaderRect.SetUniformMat4fv("projection", projection);
 
-		glm::mat4 view = LookAt(CameraPos, CameraPos + CameraFront, CameraUp);
+		glm::mat4 view = camera.GetViewMatrix();
 		shaderRect.SetUniformMat4fv("view", view);
 
 		GL_CHECK(glBindVertexArray(VAO));
@@ -252,29 +248,26 @@ void ProcessInput(GLFWwindow* window)
 			MaxVis = 0.f;
 	}
 
-	const float velocity = 2.5f * DeltaTime;
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		CameraPos += CameraFront * velocity;
+		camera.ProcessKeyboard(FORWARD, DeltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		CameraPos -= CameraFront * velocity;
+		camera.ProcessKeyboard(BACKWARD, DeltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * velocity;
+		camera.ProcessKeyboard(LEFT, DeltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * velocity;
-	CameraPos.y = 0.f;
+		camera.ProcessKeyboard(RIGHT, DeltaTime);
 }
 
 void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 {
-	Fov -= (float)yOffset;
-	if (Fov < 1.f)
-		Fov = 1.f;
-	if (Fov > 60.f)
-		Fov = 60.f;
+	camera.ScrollCallback(static_cast<float>(yOffset));
 }
 
-void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+void MouseCallback(GLFWwindow* window, double xPosition, double yPosition)
 {
+	float xPos = static_cast<float>(xPosition);
+	float yPos = static_cast<float>(yPosition);
+
 	if (FirstMouse)
 	{
 		LastX = xPos;
@@ -288,31 +281,7 @@ void MouseCallback(GLFWwindow* window, double xPos, double yPos)
 	LastX = xPos;
 	LastY = yPos;
 
-	float sensitivity = 0.01f;
-	xOffset *= sensitivity;
-	yOffset *= sensitivity;
-
-	Yaw += xOffset;
-	Pitch += yOffset;
-
-	if (Pitch > 89.f)
-		Pitch = 89.f;
-	if (Pitch < -89.f)
-		Pitch = -89.f;
-
-	glm::vec3 direction;
-	direction.x = glm::cos(glm::radians(Yaw)) * glm::cos(glm::radians(Pitch));
-	direction.y = glm::sin(glm::radians(Pitch));
-	direction.z = glm::sin(glm::radians(Yaw)) * glm::cos(glm::radians(Pitch));
-	CameraFront = glm::normalize(direction);
-}
-
-void ChangeColor(Shader& shader)
-{
-	float timeValue = glfwGetTime();
-	float colorValue = (sin(timeValue) / 2.f) + 0.6f;
-	shader.Use();
-	shader.SetUniform4f("ourColor", 0.f, colorValue, 0.f, 1.f);
+	camera.MouseCallback(xOffset, yOffset);
 }
 
 void LoadTextureJPG(Shader& shader, const char* fName, unsigned int& texture, const std::string texName)
@@ -387,29 +356,4 @@ void FPS(GLFWwindow* window)
 		timerSec = 0.f;
 		fpsCount = 0;
 	}
-}
-
-glm::mat4 LookAt(glm::vec3 pos, glm::vec3 target, glm::vec3 up)
-{
-	glm::vec3 zAxis = glm::normalize(pos - target);
-	glm::vec3 xAxis = glm::normalize(glm::cross(glm::normalize(up), zAxis));
-	glm::vec3 yAxis = glm::cross(zAxis, xAxis);
-
-	glm::mat4 rotation = glm::mat4(1.f);
-	rotation[0][0] = xAxis.x;
-	rotation[1][0] = xAxis.y;
-	rotation[2][0] = xAxis.z;
-	rotation[0][1] = yAxis.x;
-	rotation[1][1] = yAxis.y;
-	rotation[2][1] = yAxis.z;
-	rotation[0][2] = zAxis.x;
-	rotation[1][2] = zAxis.y;
-	rotation[2][2] = zAxis.z;
-
-	glm::mat4 translation = glm::mat4(1.f);
-	translation[3][0] = -pos.x;
-	translation[3][1] = -pos.y;
-	translation[3][2] = -pos.z;
-
-	return rotation * translation;
 }
