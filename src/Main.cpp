@@ -211,6 +211,7 @@ int main()
 
 			GL_CHECK(glDrawArrays(GL_TRIANGLES, 0, 36));
 		}
+		GL_CHECK(glBindVertexArray(0));
 
 		// Check events and swap buffers
 		glfwSwapBuffers(window);
@@ -220,6 +221,7 @@ int main()
 	// De-allocate all resources once its over
 	GL_CHECK(glDeleteVertexArrays(1, &VAO));
 	GL_CHECK(glDeleteBuffers(1, &VBO));
+	GL_CHECK(glBindVertexArray(0));
 
 	glfwTerminate();
 	return 0;

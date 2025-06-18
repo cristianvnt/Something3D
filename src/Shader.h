@@ -14,10 +14,11 @@ class Shader
 {
 private:
 	// Program id
-	unsigned int programID;
+	unsigned int _ID;
 
 public:
 	Shader(const char* vertexPath, const char* fragmentPath);
+	~Shader();
 
 	// Use/activate the shader
 	void Use() const;
