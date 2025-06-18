@@ -19,6 +19,7 @@ void ChangeColor(Shader& shader);
 void LoadTextureJPG(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void LoadTexturePng(Shader& shader, const char* name, unsigned int& texture, const std::string texName);
 void FPS(GLFWwindow* window);
+glm::mat4 LookAt(glm::vec3 pos, glm::vec3 target, glm::vec3 up);
 
 constexpr int SCREEN_WIDTH = 1000;
 constexpr int SCREEN_HEIGHT = 800;
@@ -200,7 +201,7 @@ int main()
 		projection = glm::perspective(glm::radians(Fov), static_cast<float>(SCREEN_WIDTH / SCREEN_HEIGHT), 0.1f, MAX_VIEW_DIST);
 		shaderRect.SetUniformMat4fv("projection", projection);
 
-		glm::mat4 view = glm::lookAt(CameraPos, CameraPos + CameraFront, CameraUp);
+		glm::mat4 view = LookAt(CameraPos, CameraPos + CameraFront, CameraUp);
 		shaderRect.SetUniformMat4fv("view", view);
 
 		GL_CHECK(glBindVertexArray(VAO));
@@ -251,15 +252,16 @@ void ProcessInput(GLFWwindow* window)
 			MaxVis = 0.f;
 	}
 
-	const float cameraSpeed = 2.5f * DeltaTime;
+	const float velocity = 2.5f * DeltaTime;
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		CameraPos += CameraFront * cameraSpeed;
+		CameraPos += CameraFront * velocity;
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		CameraPos -= CameraFront * cameraSpeed;
+		CameraPos -= CameraFront * velocity;
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * cameraSpeed;
+		CameraPos -= glm::normalize(glm::cross(CameraFront, CameraUp)) * velocity;
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * cameraSpeed;
+		CameraPos += glm::normalize(glm::cross(CameraFront, CameraUp)) * velocity;
+	CameraPos.y = 0.f;
 }
 
 void ScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
@@ -385,4 +387,29 @@ void FPS(GLFWwindow* window)
 		timerSec = 0.f;
 		fpsCount = 0;
 	}
+}
+
+glm::mat4 LookAt(glm::vec3 pos, glm::vec3 target, glm::vec3 up)
+{
+	glm::vec3 zAxis = glm::normalize(pos - target);
+	glm::vec3 xAxis = glm::normalize(glm::cross(glm::normalize(up), zAxis));
+	glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+
+	glm::mat4 rotation = glm::mat4(1.f);
+	rotation[0][0] = xAxis.x;
+	rotation[1][0] = xAxis.y;
+	rotation[2][0] = xAxis.z;
+	rotation[0][1] = yAxis.x;
+	rotation[1][1] = yAxis.y;
+	rotation[2][1] = yAxis.z;
+	rotation[0][2] = zAxis.x;
+	rotation[1][2] = zAxis.y;
+	rotation[2][2] = zAxis.z;
+
+	glm::mat4 translation = glm::mat4(1.f);
+	translation[3][0] = -pos.x;
+	translation[3][1] = -pos.y;
+	translation[3][2] = -pos.z;
+
+	return rotation * translation;
 }
